@@ -59,7 +59,9 @@ public class MainServer : AppServer<ClientSession,RequestInfo>
                 Console.WriteLine("서버 설정 성공");
             }
 
+            GameRoom.SendData = SendData;
             _gameRoomManager.CreateRooms();
+
             _packetProcessor = new();
             _packetProcessor.Start(_userManager, _gameRoomManager, SendData);
 

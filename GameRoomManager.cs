@@ -25,13 +25,20 @@ public class GameRoomManager
 
         foreach(var room in _roomList)
         {
-            roomInfos.Add((room.RoomID, (UInt16)room.UserList.Count));
+            roomInfos.Add((room.RoomID, (UInt16)room.GameUserList.Count));
         }
 
         return roomInfos;
     }
 
-    public List<GameRoom> GetRoomList() { return _roomList; }
+    public GameRoom? GetRoom(Int16 roomId)
+    {
+        if(roomId < 0 || roomId >= MainServer._serverOption.RoomMaxCount)
+        {
+            return null;
+        }
+        return _roomList.Find(r => r.RoomID == roomId);
+    }
 
     public void ExitGameRoom(User user)
     {

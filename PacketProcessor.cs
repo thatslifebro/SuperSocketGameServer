@@ -46,10 +46,13 @@ public class PacketProcessor
     public void RegisterHandler()
     {
         _handlerMap.Add(EPacketID.SessionConnect, OnSessionConnect);
-        _handlerMap.Add(EPacketID.SessionDisconnect, OnSessionDisconnect);
+        _handlerMap.Add(EPacketID.SessionClose, OnSessionClosed);
         _handlerMap.Add(EPacketID.ReqLogin, ReqLoginHandler);
         _handlerMap.Add(EPacketID.ReqGameRoomInfos, ReqGameRoomInfosHandler);
         _handlerMap.Add(EPacketID.ReqChat, ReqChatHandler);
+        _handlerMap.Add(EPacketID.ReqEnterGameRoom, ReqEnterGameRoomHandler);
+        _handlerMap.Add(EPacketID.ReqMovePiece, ReqMovePieceHandler);
+        _handlerMap.Add(EPacketID.ReqLeaveGameRoom, ReqLeaveGameRoomHandler);
     }
 
     public void Process()
@@ -85,14 +88,14 @@ public class PacketProcessor
     {
     }
 
-    public void OnSessionDisconnect(InternalPacket internalPacket)
+    public void OnSessionClosed(InternalPacket internalPacket)
     {
         var sessionID = internalPacket.SessionID;
 
         var user = _userManager.GetUser(sessionID);
         if(user == null)
         {
-            Console.WriteLine($"[OnSessionDisconnect] Invalid SessionID: {sessionID}");
+            Console.WriteLine($"[OnSessionClosed] Invalid SessionID: {sessionID}");
             return;
         }
 
@@ -152,7 +155,20 @@ public class PacketProcessor
             return;
         }
 
-        SendGameRoomInfosResponseToClient(sessionID, ErrorCode.None);
+        SendGameRoomInfosNtf();
+    }
+
+    public void SendGameRoomInfosNtf()
+    {
+        var response = new PKTResGameRoomInfos() { Result = ErrorCode.None };
+
+        response.GameRoomInfos = _gameRoomManager.GetGameRoomInfos();
+
+        var bodyData = MessagePackSerializer.Serialize(response);
+
+        var packet = PacketToBytes.Make(EPacketID.ResGameRoomInfos, bodyData);
+
+        _userManager.GetAllUser().ForEach(user => SendData(user.SessionID, packet));
     }
 
     public void SendGameRoomInfosResponseToClient(string sessionID, ErrorCode errorCode)
@@ -206,5 +222,120 @@ public class PacketProcessor
         _userManager.GetAllUser().ForEach(user => SendData(user.SessionID, packet));
 
         //Console.WriteLine($"SendGameRoomInfosResponseToClient: {errorCode}");
+    }
+
+    public void ReqEnterGameRoomHandler(InternalPacket internalPacket)
+    {
+        var sessionID = internalPacket.SessionID;
+
+        var user = _userManager.GetUser(sessionID);
+        if (user == null)
+        {
+            SendEnterGameRoomResponseToClient(sessionID, ErrorCode.NotLoginUser);
+            return;
+        }
+
+        var bodyData = internalPacket.BodyData;
+        var request = MessagePackSerializer.Deserialize<PKTReqEnterGameRoom>(bodyData);
+        if (request == null)
+        {
+            SendEnterGameRoomResponseToClient(sessionID, ErrorCode.BodyDataError);
+            return;
+        }
+
+        var room = _gameRoomManager.GetRoom(request.RoomID);
+        if (room == null)
+        {
+            SendEnterGameRoomResponseToClient(sessionID, ErrorCode.InvalidGameRoomID);
+            return;
+        }
+
+        var errorCode = room.EnterUser(user);
+        if (errorCode != ErrorCode.None)
+        {
+            SendEnterGameRoomResponseToClient(sessionID, errorCode);
+            return;
+        }
+
+        SendEnterGameRoomResponseToClient(sessionID, ErrorCode.None);
+
+        SendGameRoomInfosNtf();
+    }
+
+    public void ReqLeaveGameRoomHandler(InternalPacket internalPacket)
+    {
+        var sessionID = internalPacket.SessionID;
+
+        var user = _userManager.GetUser(sessionID);
+        if (user == null)
+        {
+            return;
+        }
+
+        var room = _gameRoomManager.GetRoom(user.RoomID);
+        if (room == null)
+        {
+            return;
+        }
+
+        room.ExitUser(user);
+
+        SendLeaveGameRoomToClient(sessionID, ErrorCode.None);
+
+        SendGameRoomInfosNtf();
+    }
+
+    public void SendLeaveGameRoomToClient(string sessionID, ErrorCode errorCode)
+    {
+        var response = new PKTResLeaveGameRoom() { Result = errorCode };
+
+        var bodyData = MessagePackSerializer.Serialize(response);
+
+        var packet = PacketToBytes.Make(EPacketID.ResLeaveGameRoom, bodyData);
+
+        SendData(sessionID, packet);
+
+        //Console.WriteLine($"SendGameRoomInfosResponseToClient: {errorCode}");
+    }
+
+    public void SendEnterGameRoomResponseToClient(string sessionID, ErrorCode errorCode)
+    {
+        var response = new PKTReqEnterGameRoom() { Result = errorCode };
+
+        var bodyData = MessagePackSerializer.Serialize(response);
+
+        var packet = PacketToBytes.Make(EPacketID.ResEnterGameRoom, bodyData);
+
+        SendData(sessionID, packet);
+
+        //Console.WriteLine($"SendGameRoomInfosResponseToClient: {errorCode}");
+    }
+
+    public void ReqMovePieceHandler(InternalPacket internalPacket)
+    {
+        var sessionID = internalPacket.SessionID;
+
+        var user = _userManager.GetUser(sessionID);
+        if (user == null)
+        {
+            return;
+        }
+
+        var bodyData = internalPacket.BodyData;
+        var request = MessagePackSerializer.Deserialize<PKTReqMovePiece>(bodyData);
+        if (request == null)
+        {
+            return;
+        }
+
+        var room = _gameRoomManager.GetRoom(user.RoomID);
+        if (room == null)
+        {
+            return;
+        }
+
+        var game = room.game;
+
+        game.MovePiece(sessionID, request);
     }
 }
