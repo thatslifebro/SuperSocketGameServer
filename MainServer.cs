@@ -51,7 +51,7 @@ public class MainServer : AppServer<ClientSession,RequestInfo>
 
             if (bResult == false)
             {
-                Console.WriteLine("[ERROR] 서버 네트워크 설정 실패 ㅠㅠ");
+                Console.WriteLine("[ERROR] 서버 네트워크 설정 실패");
                 return;
             }
             else
@@ -104,24 +104,24 @@ public class MainServer : AppServer<ClientSession,RequestInfo>
     {
         Console.WriteLine("Session Connected: {0}", session.SessionID);
 
-        ProcessPacket(new InternalPacket(session.SessionID, EPacketID.SessionConnect, null));
+        InsertPacket(new InternalPacket(session.SessionID, EPacketID.SessionConnect, null));
     }
 
     void OnClosed(ClientSession session, CloseReason reason)
     {
         Console.WriteLine("Session Closed: {0}, Reason: {1}", session.SessionID, reason);
 
-        ProcessPacket(new InternalPacket(session.SessionID, EPacketID.SessionClose, null));
+        InsertPacket(new InternalPacket(session.SessionID, EPacketID.SessionClose, null));
     }
 
     void OnRequestReceived(ClientSession session, RequestInfo requestInfo)
     {
         //Console.WriteLine("Request Received: {0}", requestInfo.Key);
 
-        ProcessPacket(new InternalPacket(session.SessionID, (EPacketID)requestInfo.PacketID, requestInfo.Body));
+        InsertPacket(new InternalPacket(session.SessionID, (EPacketID)requestInfo.PacketID, requestInfo.Body));
     }
 
-    void ProcessPacket(InternalPacket internalPacket)
+    void InsertPacket(InternalPacket internalPacket)
     {
         _packetProcessor.InsertPacket(internalPacket);
     }

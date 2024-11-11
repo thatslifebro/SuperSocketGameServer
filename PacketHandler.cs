@@ -34,6 +34,7 @@ public class PacketHandler
 
     public void OnSessionConnect(InternalPacket internalPacket)
     {
+        //Console.WriteLine($"OnSessionConnect: {internalPacket.SessionID}");
     }
 
     public void OnSessionClosed(InternalPacket internalPacket)

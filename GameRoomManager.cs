@@ -46,7 +46,7 @@ public class GameRoomManager
 
         if(room == null)
         {
-            Console.WriteLine($"Not found room: {user.RoomID}");
+            //Console.WriteLine($"Not found room: {user.RoomID}");
             return;
         }
 
