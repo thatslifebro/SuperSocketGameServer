@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace GameServer;
+﻿namespace GameServer;
 
 public class UserManager
 {
@@ -35,7 +29,7 @@ public class UserManager
 
     public User? GetUser(string sessionId)
     {
-        if(_userMap.TryGetValue(sessionId, out User user))
+        if(_userMap.TryGetValue(sessionId, out User? user))
         {
             return user;
         }

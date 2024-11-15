@@ -1,22 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace GameServer;
+﻿namespace GameServer;
 
 public class GameRoom
 {
     public UInt16 RoomID { get; private set; }
     public Game game;
 
-    public static Action<string, byte[]> SendData;
+    public static Action<string, byte[]>? SendData;
 
     public GameRoom(UInt16 roomID)
     {
         RoomID = roomID;
-        game = new Game(SendData);
+        game = new Game(SendData!);
     }
 
     public List<User> GameUserList = new();

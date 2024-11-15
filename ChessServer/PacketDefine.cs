@@ -1,9 +1,4 @@
 ﻿using MessagePack;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GameServer;
 
@@ -59,7 +54,7 @@ public class PacketToBytes
 public class PKTReqLogin
 {
     [Key(0)]
-    public string UserID;
+    public string UserID = "";
 }
 
 [MessagePackObject]
@@ -76,7 +71,7 @@ public class PKTResGameRoomInfos
     public ErrorCode Result;
 
     [Key(1)]
-    public List<(UInt16, UInt16)> GameRoomInfos;
+    public List<(UInt16, UInt16)> GameRoomInfos = new();
 }
 
 [MessagePackObject]
@@ -90,14 +85,14 @@ public class PKTResLeaveGameRoom
 public class PKTReqChat
 {
     [Key(0)]
-    public string Chat;
+    public string Chat ="";
 }
 
 [MessagePackObject]
 public class PKTNtfChat
 {
     [Key(0)]
-    public string Chat;
+    public string Chat = "";
 }
 
 [MessagePackObject]
@@ -121,7 +116,7 @@ public class PKTResEnterGameRoom
 public class PKTNtfGameStart
 {
     [Key(0)]
-    public List<(string, string)> UserInfos;
+    public List<(string, string)> UserInfos = new();
 }
 
 [MessagePackObject]

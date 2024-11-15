@@ -1,17 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace GameServer;
+﻿namespace GameServer;
 
 class TableClass
 {
-    public int[,] Table { get; set; }
-    public int[,] PossibleMoves { get; set; }
-    public int[,] AllPossibleMoves { get; set; }
+    public int[,] Table { get; set; } = new int[8, 8];
+    public int[,] PossibleMoves { get; set; } = new int[8, 8];
+    public int[,] AllPossibleMoves { get; set; } = new int[8, 8];
     public bool WhiteStaleUp = false;
     public bool BlackStaleUp = false;
     public bool CancelLastMove = false;

@@ -1,11 +1,4 @@
 ﻿using MessagePack;
-using Sakk_Alkalmazás_2._0;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.WebSockets;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GameServer;
 
@@ -71,8 +64,8 @@ public class Game : Chess
     {
         var packet = new PKTNtfGameStart();
         var UserInfos = new List<(string, string)>();
-        UserInfos.Add((WhitePlayer.SessionID, WhitePlayer.UserID));
-        UserInfos.Add((BlackPlayer.SessionID, BlackPlayer.UserID));
+        UserInfos.Add((WhitePlayer!.SessionID, WhitePlayer.UserID));
+        UserInfos.Add((BlackPlayer!.SessionID, BlackPlayer.UserID));
 
         packet.UserInfos = UserInfos;
 
@@ -86,14 +79,14 @@ public class Game : Chess
     public void MovePiece(string sessionID, PKTReqMovePiece request)
     {
         ErrorCode errorCode = ErrorCode.None;
-        var opponentID = sessionID == WhitePlayer.SessionID ? BlackPlayer.SessionID : WhitePlayer.SessionID;
+        var opponentID = sessionID == WhitePlayer!.SessionID ? BlackPlayer!.SessionID : WhitePlayer.SessionID;
 
         if (_gameStatus != GameStatus.Playing)
         {
             errorCode = ErrorCode.InvalidGameStatus;
         }
 
-        if (_turn == Turn.Black && BlackPlayer.SessionID != sessionID)
+        if (_turn == Turn.Black && BlackPlayer!.SessionID != sessionID)
         {
             errorCode = ErrorCode.NotYourTurn;
         }

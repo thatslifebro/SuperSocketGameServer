@@ -1,19 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
-using MessagePack;
-
+﻿using System.Threading.Tasks.Dataflow;
 
 namespace GameServer;
 
 public class PacketProcessor
 {
     BufferBlock<InternalPacket> _bufferBlock = new();
-    Thread _processThread = null;
+    Thread _processThread;
 
     Dictionary<EPacketID, Action<InternalPacket>> _handlerMap = new();
 
@@ -23,15 +15,19 @@ public class PacketProcessor
 
     bool _isThreadRunning = false;
 
+    OpenTelemetryHelper _openTelemetryHelper;
+
     Action<string, byte[]> SendData;
 
-    public void Start(UserManager userManager, GameRoomManager gameRoomManager, Action<string, byte[]> networkSendFunc)
+    public void Start(UserManager userManager, GameRoomManager gameRoomManager, Action<string, byte[]> networkSendFunc, OpenTelemetryHelper openTelemetryHelper)
     {
+        _openTelemetryHelper = openTelemetryHelper;
+
         _userManager = userManager;
         _gameRoomManager = gameRoomManager;
         SendData = networkSendFunc;
 
-        _packetHandler.Init(_userManager, _gameRoomManager, SendData);
+        _packetHandler.Init(_userManager, _gameRoomManager, SendData, _openTelemetryHelper);
         _packetHandler.RegisterHandler(_handlerMap);
 
         _isThreadRunning = true;
@@ -65,7 +61,7 @@ public class PacketProcessor
         }
         catch (Exception ex)
         {
-            _isThreadRunning.IfTrue(() => Console.WriteLine($"[Process] Exception: {ex.ToString()}"));
+            _isThreadRunning.IfTrue(() => Console.WriteLine($"[Process] Exception: {ex}"));
         }
     }
 

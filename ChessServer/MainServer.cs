@@ -1,11 +1,6 @@
-﻿using Microsoft.VisualBasic.FileIO;
+﻿using Microsoft.Extensions.Logging;
 using SuperSocket.SocketBase;
 using SuperSocket.SocketBase.Protocol;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 
 namespace GameServer;
@@ -19,12 +14,19 @@ public class MainServer : AppServer<ClientSession,RequestInfo>
         NewRequestReceived += new RequestHandler<ClientSession, RequestInfo>(OnRequestReceived);
     }
 
+    #region OpenTelemetry
+
+    public OpenTelemetryHelper _openTelemetryHelper = new();
+
+    #endregion
+
     public static ServerOption _serverOption = new();
-    SuperSocket.SocketBase.Config.IServerConfig _config;
+    SuperSocket.SocketBase.Config.IServerConfig? _config;
 
     PacketProcessor _packetProcessor = new PacketProcessor();
     UserManager _userManager = new UserManager();
     GameRoomManager _gameRoomManager = new GameRoomManager();
+
 
     public void InitConfig(ServerOption option)
     {
@@ -47,29 +49,29 @@ public class MainServer : AppServer<ClientSession,RequestInfo>
     {
         try
         {
-            bool bResult = Setup(new SuperSocket.SocketBase.Config.RootConfig(), _config, logFactory: null); // SuperSocket 함수
+            bool bResult = Setup(new SuperSocket.SocketBase.Config.RootConfig(), _config, logFactory: null);
 
             if (bResult == false)
             {
-                Console.WriteLine("[ERROR] 서버 네트워크 설정 실패");
+                _openTelemetryHelper.logger.LogInformation("서버 설정 실패");
                 return;
             }
             else
             {
-                Console.WriteLine("서버 설정 성공");
+                _openTelemetryHelper.logger.LogInformation("서버 설정 성공");
             }
 
             GameRoom.SendData = SendData;
             _gameRoomManager.CreateRooms();
 
             _packetProcessor = new();
-            _packetProcessor.Start(_userManager, _gameRoomManager, SendData);
+            _packetProcessor.Start(_userManager, _gameRoomManager, SendData, _openTelemetryHelper);
 
-            Start();// SuperSocket 함수
+            Start();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ERROR] 서버 생성 실패: {ex.ToString()}");
+            _openTelemetryHelper.logger.LogError($"서버 생성 실패: {ex}");
         }
     }
 
@@ -82,7 +84,7 @@ public class MainServer : AppServer<ClientSession,RequestInfo>
 
     public void SendData(string sessionId, byte[] data)
     {
-        var session = GetSessionByID(sessionId); // SuperSocket 함수
+        var session = GetSessionByID(sessionId);
 
         try
         {
@@ -91,34 +93,42 @@ public class MainServer : AppServer<ClientSession,RequestInfo>
                 return;
             }
 
-            session.Send(data, 0, data.Length); // SuperSocket 함수
+            session.Send(data, 0, data.Length);
+
+            _openTelemetryHelper.instrumentation.OnDataSent(data.Length);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            session.SendEndWhenSendingTimeOut(); // SuperSocket 함수
-            session.Close(); // SuperSocket 함수
+            session.SendEndWhenSendingTimeOut();
+            session.Close();
+
+            _openTelemetryHelper.instrumentation.OnError();
         }
     }
 
     void OnConnected(ClientSession session)
     {
-        Console.WriteLine("Session Connected: {0}", session.SessionID);
+        _openTelemetryHelper.logger.LogInformation($"Session Connected: {session.SessionID}");
+
+        _openTelemetryHelper.instrumentation.OnClientConnected();
 
         InsertPacket(new InternalPacket(session.SessionID, EPacketID.SessionConnect, null));
     }
 
     void OnClosed(ClientSession session, CloseReason reason)
     {
-        Console.WriteLine("Session Closed: {0}, Reason: {1}", session.SessionID, reason);
+        _openTelemetryHelper.logger.LogInformation($"Session Closed: {session.SessionID}, Reason: {reason}");
+
+        _openTelemetryHelper.instrumentation.OnClientDisconnected();
 
         InsertPacket(new InternalPacket(session.SessionID, EPacketID.SessionClose, null));
     }
 
     void OnRequestReceived(ClientSession session, RequestInfo requestInfo)
     {
-        //Console.WriteLine("Request Received: {0}", requestInfo.Key);
-
         InsertPacket(new InternalPacket(session.SessionID, (EPacketID)requestInfo.PacketID, requestInfo.Body));
+
+        _openTelemetryHelper.logger.LogInformation($"OnRequestReceived: {requestInfo.PacketID}, SessionID : {session.SessionID}");
     }
 
     void InsertPacket(InternalPacket internalPacket)

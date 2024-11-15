@@ -1,9 +1,5 @@
 ﻿using MessagePack;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace GameServer;
 
@@ -12,9 +8,11 @@ public class PacketHandler
     UserManager _userManager;
     GameRoomManager _gameRoomManager;
     Action<string, byte[]> SendData;
+    OpenTelemetryHelper _openTelemetryHelper;
 
-    public void Init(UserManager userManager, GameRoomManager gameRoomManager, Action<string, byte[]> sendData)
+    public void Init(UserManager userManager, GameRoomManager gameRoomManager, Action<string, byte[]> sendData, OpenTelemetryHelper openTelemetryHelper)
     {
+        _openTelemetryHelper = openTelemetryHelper;
         _userManager = userManager;
         _gameRoomManager = gameRoomManager;
         SendData = sendData;
@@ -55,28 +53,44 @@ public class PacketHandler
 
     public void ReqLoginHandler(InternalPacket internalPacket)
     {
+        using var activity = _openTelemetryHelper.instrumentation.ActivitySource.StartActivity("ReqLoginHandler");
         var sessionID = internalPacket.SessionID;
+        activity?.SetTag("SessionID", sessionID);
 
         if (_userManager.GetUser(sessionID) != null)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, description: ErrorCode.AlreadyExistUser.ToString());
             SendLoginResponseToClient(sessionID, ErrorCode.AlreadyLoginUser);
             return;
         }
+
+        activity?.AddEvent(new ActivityEvent("Get User"));
+
+        var activity2 = _openTelemetryHelper.instrumentation.ActivitySource.StartActivity("Main Process");
 
         var bodyData = internalPacket.BodyData;
         var request = MessagePackSerializer.Deserialize<PKTReqLogin>(bodyData);
         if (request == null)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, description: ErrorCode.LoginBodySerializeError.ToString());
             SendLoginResponseToClient(sessionID, ErrorCode.LoginBodySerializeError);
             return;
         }
 
+        activity?.AddEvent(new ActivityEvent("Deserialize BodyData"));
+        activity?.SetTag("UserID", request.UserID);
+
+
         var errorCode = _userManager.AddUser(sessionID, request.UserID);
         if (errorCode != ErrorCode.None)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, description: errorCode.ToString());
             SendLoginResponseToClient(sessionID, errorCode);
             return;
         }
+        activity?.AddEvent(new ActivityEvent("Add User"));
+
+        activity2?.Stop();
 
         SendLoginResponseToClient(sessionID, ErrorCode.None);
     }
@@ -97,7 +111,7 @@ public class PacketHandler
     public void ReqGameRoomInfosHandler(InternalPacket internalPacket)
     {
         var sessionID = internalPacket.SessionID;
-
+        
         if (_userManager.GetUser(sessionID) == null)
         {
             SendGameRoomInfosResponseToClient(sessionID, ErrorCode.NotLoginUser);

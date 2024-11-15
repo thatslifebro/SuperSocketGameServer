@@ -8,7 +8,7 @@ public class ServerOption
     public int ChatServerUniqueID { get; set; }
 
     [Option("name", Required = true, HelpText = "Server Name")]
-    public string Name { get; set; }
+    public string Name { get; set; } = "";
 
     [Option("maxConnectionNumber", Required = true, HelpText = "MaxConnectionNumber")]
     public int MaxConnectionNumber { get; set; }

@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace GameServer;
+﻿namespace GameServer;
 
 class Program
 {
@@ -34,11 +32,11 @@ class Program
                     mainServer.ServerStop();
                 }
             }
-
         }
+
     }
 
-    static ServerOption ParseCommandLine(string[] args)
+    static ServerOption? ParseCommandLine(string[] args)
     {
         var result = CommandLine.Parser.Default.ParseArguments<ServerOption>(args) as CommandLine.Parsed<ServerOption>;
 
